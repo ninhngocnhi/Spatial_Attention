@@ -85,7 +85,7 @@ nc = 3
 converter = utils.strLabelConverterForAttention(alphabet)
 criterion = torch.nn.NLLLoss()             
 
-model = crnn.Model(opt.nh, nclass, opt.imgW, opt.imgH).to(device=opt.cuda)
+model = crnn.Model(opt.nh, nclass, opt.imgW, opt.imgH)
 model.apply(weights_init)
 if opt.model:
     print('loading pretrained encoder model from %s' % opt.model)
@@ -155,10 +155,7 @@ def val(model, criterion, batchsize, dataset, teach_forcing=False, max_iter=100,
                 if ni == EOS_TOKEN:
                     decoded_words.append('<EOS>')
                     decoded_label.append(EOS_TOKEN)
-<<<<<<< HEAD
-=======
                     print('smt')
->>>>>>> parent of bafa4cf... update
                     break
                 else:
                     decoded_words.append(converter.decode(ni))
