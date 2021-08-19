@@ -18,7 +18,7 @@ import models.spatial_attention as crnn
 print(crnn.__name__)
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--path',  default='data', help='where to ascess image')
+parser.add_argument('--path',  default='data/', help='where to ascess image')
 parser.add_argument('--trainlist',  default='data/train')
 parser.add_argument('--vallist',  default='data/test')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
