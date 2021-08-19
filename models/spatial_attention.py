@@ -1,4 +1,3 @@
-# coding:utf-8
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,6 +15,7 @@ class OneHot(nn.Module):
         emb.weight.data = torch.eye(depth)
         emb.weight.requires_grad = False
         self.emb = emb
+        self.depth = depth
 
     def forward(self, input):
         return self.emb(input)
@@ -70,26 +70,27 @@ class Decoder(nn.Module):
         self.atten = Attention(nHid)
         self.linear = nn.Linear(nHid*2, nHid)
         self.rnn = nn.GRU(nHid, nHid, batch_first=False)
-        self.out = nn.Softmax()
-        
+        self.out = nn.Linear(nHid, nEm)
+        self.outt = nn.Softmax()
+    
     def forward(self, targets, hidden_dec, features):
         emb_in = self.emb(targets)
         context, atten_weight = self.atten(hidden_dec, features)
         # print("shape context, atten_weight", context.size(), atten_weight.size()) #[32,256], [32,1156,256]
         # print("shape target ", emb_in.size()) #[32,256]
-        # print("shape concat: ", torch.cat([emb_in, context],1).size())
+        # print("shape concat:
+        #  ", torch.cat([emb_in, context],1).size())
         in_rnn = self.linear(torch.cat([emb_in, context],1)).unsqueeze(0)
         # print("shape in_rnn: ",in_rnn.size()) #[1,32,256]
-        # print("shape hidden_dec: ", hidden_dec.size()) #[1,32,256]
+        # print("shape hidden_dec: ", hidden_dec.size()) #[1,32,256]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
         output, current_hid = self.rnn(in_rnn, hidden_dec)
         # print("shape output, current_hid", output.size(), current_hid.size()) #[1,32,256], [1,32,256]
-        out_pre = self.linear(torch.cat([output,context.unsqueeze(0)], 2))
-        print(out_pre.size())
-        out_pre = F.log_softmax(self.out(out_pre[0]), dim =1)
+        out_pre = self.linear(torch.cat([output.squeeze(0),context], 1))
+        # print(out_pre.size())
+        out_pre = self.outt(self.out(out_pre))
+        return out_pre, current_hid
 
-        return out_pre, current_hid, atten_weight
-
-class Model(nn.Module):
+class Model(nn.Module): 
     def __init__(self, nHid, nEm, imgH, imgW):
         super().__init__()
         self.incept = Incept()
@@ -101,7 +102,9 @@ class Model(nn.Module):
         self.onehot_x = OneHot(self._fh)
         self.onehot_y = OneHot(self._fw)
         self.li = nn.Linear(288 + self._fh + self._fw, nHid)
-
+        self.imgH = imgH
+        self.imgW = imgW
+        
     def forward(self, targets, hid_dec, images):
         device = images.device
         feature_map = self.incept(images)
@@ -113,8 +116,8 @@ class Model(nn.Module):
         features = torch.cat([feature_map.permute(0, 2, 3, 1), loc], dim=3)
         features = features.contiguous().view(b, -1, 288 + self._fh + self._fw)
         features = self.li(features)
-        out_pre, current_hid, atten_weight = self.decoder(targets, hid_dec, features)
-        return out_pre, current_hid, atten_weight
+        out_pre, current_hid = self.decoder(targets, hid_dec, features)
+        return out_pre, current_hid
 
     def initHidden(self, batch_size):
         result = Variable(torch.zeros(1, batch_size, self.nHid))

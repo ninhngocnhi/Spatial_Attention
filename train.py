@@ -1,4 +1,3 @@
-# coding:utf-8
 from __future__ import print_function
 import argparse
 import random
@@ -23,10 +22,10 @@ parser.add_argument('--trainlist',  default='data/train')
 parser.add_argument('--vallist',  default='data/test')
 parser.add_argument('--workers', type=int, help='number of data loading workers', default=2)
 parser.add_argument('--batchSize', type=int, default=2, help='input batch size')
-parser.add_argument('--imgH', type=int, default=299, help='the height of the input image to network')
-parser.add_argument('--imgW', type=int, default=299, help='the width of the input image to network')
+parser.add_argument('--imgH', type=int, default=64, help='the height of the input image to network')
+parser.add_argument('--imgW', type=int, default=512, help='the width of the input image to network')
 parser.add_argument('--nh', type=int, default=256, help='size of the lstm hidden state')
-parser.add_argument('--niter', type=int, default=10, help='number of epochs to train for')
+parser.add_argument('--niter', type=int, default=1, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.001, help='learning rate for Critic, default=0.00005')
 parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
 parser.add_argument('--cuda', action='store_true', help='enables cuda', default=False)
@@ -41,8 +40,11 @@ parser.add_argument('--adadelta', action='store_true', help='Whether to use adad
 parser.add_argument('--keep_ratio', action='store_true', help='whether to keep ratio for image resize')
 parser.add_argument('--random_sample', default=True, action='store_true', help='whether to sample the dataset with random sampler')
 parser.add_argument('--teaching_forcing_prob', type=float, default=0.5, help='where to use teach forcing')
+parser.add_argument('--max_width', type=int, default=61, help='where to use teach forcing')
 opt = parser.parse_args()
 print(opt)
+
+device = torch.device("cuda:0" if opt.cuda else "cpu")
 
 SOS_token = 0
 EOS_TOKEN = 1              
@@ -85,7 +87,7 @@ nc = 3
 converter = utils.strLabelConverterForAttention(alphabet)
 criterion = torch.nn.NLLLoss()             
 
-model = crnn.Model(opt.nh, nclass, opt.imgW, opt.imgH)
+model = crnn.Model(opt.nh, nclass, opt.imgH, opt.imgW)
 model.apply(weights_init)
 if opt.model:
     print('loading pretrained encoder model from %s' % opt.model)
@@ -132,30 +134,27 @@ def val(model, criterion, batchsize, dataset, teach_forcing=False, max_iter=100,
         cpu_images, cpu_texts = data
         b = cpu_images.size(0)
         utils.loadData(image, cpu_images)
-
         target_variable = converter.encode(cpu_texts)
         n_total += len(cpu_texts[0]) + 1                    
 
         decoded_words = []
         decoded_label = []
         decoder_attentions = torch.zeros(len(cpu_texts[0]) + 1, opt.max_width)
-        target_variable = target_variable.cuda()
-        decoder_input = target_variable[0].cuda()  
-        decoder_hidden = model.initHidden(b).cuda()
+        target_variable = target_variable.to(device)
+        decoder_input = target_variable[0].to(device)
+        decoder_hidden = model.initHidden(b).to(device)
         loss = 0.0
         if not teach_forcing:
             for di in range(1, target_variable.shape[0]):  
-                decoder_output, decoder_hidden, decoder_attention = model(decoder_input, decoder_hidden, image)
+                decoder_output, decoder_hidden = model(decoder_input, decoder_hidden, image)
                 loss += criterion(decoder_output, target_variable[di])  
                 loss_avg.add(loss)
-                decoder_attentions[di-1] = decoder_attention.data
                 topv, topi = decoder_output.data.topk(1)
                 ni = topi.squeeze(1)    
                 decoder_input = ni
                 if ni == EOS_TOKEN:
                     decoded_words.append('<EOS>')
                     decoded_label.append(EOS_TOKEN)
-                    print('smt')
                     break
                 else:
                     decoded_words.append(converter.decode(ni))
@@ -177,20 +176,26 @@ def trainBatch(model, criterion, model_optimizer, teach_forcing_prob=1):
     cpu_images, cpu_texts = data
     b = cpu_images.size(0)
     target_variable = converter.encode(cpu_texts)
-    utils.loadData(image, cpu_images)  
-    target_variable = target_variable.cuda()
-    decoder_input = target_variable[0].cuda()      
-    decoder_hidden = model.initHidden(b).cuda()
+    utils.loadData(image, cpu_images)
+    target_variable = target_variable.to(device)
+    decoder_input = target_variable[0].to(device)     
+    decoder_hidden = model.initHidden(b).to(device)
     loss = 0.0
     teach_forcing = True if random.random() > teach_forcing_prob else False
     if teach_forcing:
         for di in range(1, target_variable.shape[0]):         
-            decoder_output, decoder_hidden, decoder_attention = model(decoder_input, decoder_hidden, image)
-            loss += criterion(decoder_output, target_variable[di])         
+            decoder_output, decoder_hidden = model(decoder_input, decoder_hidden, image)
+            # print(decoder_attention.size())
+            # print("+++++++++++++++shape target_variable[di]: ", target_variable[di].size())
+            # print("+++++++++++++++shape decoder_output: ", decoder_output.size()) 
+            loss += criterion(decoder_output, target_variable[di])  
+                  
             decoder_input = target_variable[di] 
+            
     else:
         for di in range(1, target_variable.shape[0]):
-            decoder_output, decoder_hidden, decoder_attention = model(decoder_input, decoder_hidden, image)
+            decoder_output, decoder_hidden = model(decoder_input, decoder_hidden, image)
+            
             loss += criterion(decoder_output, target_variable[di])  
             topv, topi = decoder_output.data.topk(1)
             ni = topi.squeeze()

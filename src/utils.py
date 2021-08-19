@@ -6,9 +6,8 @@ import collections
 with open('data/char') as f:
     data = f.readlines()
     alphabet = [x.rstrip() for x in data]
-    alphabet = ''.join(alphabet)       
+    alphabet = ''.join(alphabet)   
 f.close()
-
 class strLabelConverterForAttention(object):
     
     def __init__(self, alphabet):
@@ -18,8 +17,7 @@ class strLabelConverterForAttention(object):
         self.dict['SOS'] = 0       
         self.dict['EOS'] = 1     
         for i, item in enumerate(self.alphabet):
-            self.dict[item] = i + 2            
-
+            self.dict[item] = i + 2      
     def encode(self, text):
         if isinstance(text, str):
             text = [self.dict[item] for item in text]

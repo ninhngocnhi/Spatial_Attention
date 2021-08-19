@@ -1,10 +1,12 @@
 import random
 import torch
+from torch._C import import_ir_module
 from torch.utils.data import Dataset
 from torch.utils.data import sampler
 import torchvision.transforms as transforms
 from PIL import Image
 import numpy as np
+import torch.nn as nn
 from torchvision.transforms.transforms import CenterCrop, GaussianBlur, RandomCrop, RandomRotation
 
 
@@ -46,7 +48,7 @@ class listDataset(Dataset):
 
         return (img, label)
 
-class resizeNormalize(object):
+class resizeNormalize(nn.Module):
 
     def __init__(self, size, interpolation=Image.BILINEAR):
         self.size = size
@@ -107,13 +109,13 @@ class alignCollate(object):
             max_ratio = ratios[-1]
             imgW = int(np.floor(max_ratio * imgH))
             imgW = max(imgH * self.min_ratio, imgW)  # assure imgH >= imgW
-    
-        transform = torch.nn.Sequential(
-            RandomRotation(degrees=(-10,10)),
-            GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-            CenterCrop((1900,32)),
-            resizeNormalize((imgW, imgH))
-        )
+        transform = resizeNormalize((imgW, imgH))
+        # transform = torch.nn.Sequential(
+        #     RandomRotation(degrees=(-10,10)),
+        #     GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+        #     CenterCrop((1900,32)),
+        #     resizeNormalize((imgW, imgH))
+        # )
         images = [transform(image) for image in images]
         images = torch.cat([t.unsqueeze(0) for t in images], 0)
 
