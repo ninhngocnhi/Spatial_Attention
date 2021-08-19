@@ -21,14 +21,6 @@ class strLabelConverterForAttention(object):
             self.dict[item] = i + 2            
 
     def encode(self, text):
-        """对target_label做编码和对齐
-        对target txt每个字符串的开始加上GO，最后加上EOS，并用最长的字符串做对齐
-        Args:
-            text (str or list of str): texts to convert.
-
-        Returns:
-            torch.IntTensor targets:max_length × batch_size
-        """
         if isinstance(text, str):
             text = [self.dict[item] for item in text]
         elif isinstance(text, collections.Iterable):
@@ -55,8 +47,6 @@ def loadData(v, data):
       v.resize_(data.size()).copy_(data)
 
 class averager(object):
-    """Compute average for `torch.Variable` and `torch.Tensor`. """
-
     def __init__(self):
         self.reset()
 
