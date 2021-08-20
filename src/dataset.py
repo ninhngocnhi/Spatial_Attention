@@ -109,13 +109,13 @@ class alignCollate(object):
             max_ratio = ratios[-1]
             imgW = int(np.floor(max_ratio * imgH))
             imgW = max(imgH * self.min_ratio, imgW)  # assure imgH >= imgW
-        transform = resizeNormalize((imgW, imgH))
-        # transform = torch.nn.Sequential(
-        #     RandomRotation(degrees=(-10,10)),
-        #     GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-        #     CenterCrop((1900,32)),
-        #     resizeNormalize((imgW, imgH))
-        # )
+        # transform = resizeNormalize((imgW, imgH))
+        transform = torch.nn.Sequential(
+            RandomRotation(degrees=(-10,10)),
+            GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+            CenterCrop((1900,32)),
+            resizeNormalize((imgW, imgH))
+        )
         images = [transform(image) for image in images]
         images = torch.cat([t.unsqueeze(0) for t in images], 0)
 

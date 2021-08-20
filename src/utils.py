@@ -55,7 +55,7 @@ class averager(object):
         elif isinstance(v, torch.Tensor):
             count = v.numel()
             v = v.sum()
-
+        # print(v, "AAAAAAAAAAAA ", count)
         self.n_count += count
         self.sum += v
 
@@ -67,6 +67,7 @@ class averager(object):
         res = 0
         if self.n_count != 0:
             res = self.sum / float(self.n_count)
+            # print("result: ", self.sum, "aaaaaaaaaa", self.n_count)
         return res
 
 def weights_init(model):

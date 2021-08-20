@@ -71,7 +71,7 @@ class Decoder(nn.Module):
         self.linear = nn.Linear(nHid*2, nHid)
         self.rnn = nn.GRU(nHid, nHid, batch_first=False)
         self.out = nn.Linear(nHid, nEm)
-        self.outt = nn.Softmax()
+        self.outt = nn.LogSoftmax()
     
     def forward(self, targets, hidden_dec, features):
         emb_in = self.emb(targets)

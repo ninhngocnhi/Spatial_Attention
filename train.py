@@ -85,7 +85,7 @@ test_train = dataset.listDataset(path = opt.path, list_file =opt.trainlist, tran
 nclass = len(alphabet) + 3         
 nc = 3
 converter = utils.strLabelConverterForAttention(alphabet)
-criterion = torch.nn.NLLLoss()             
+criterion = torch.nn.NLLLoss()      
 
 model = crnn.Model(opt.nh, nclass, opt.imgH, opt.imgW)
 model.apply(weights_init)
@@ -139,7 +139,6 @@ def val(model, criterion, batchsize, dataset, teach_forcing=False, max_iter=100,
 
         decoded_words = []
         decoded_label = []
-        decoder_attentions = torch.zeros(len(cpu_texts[0]) + 1, opt.max_width)
         target_variable = target_variable.to(device)
         decoder_input = target_variable[0].to(device)
         decoder_hidden = model.initHidden(b).to(device)
@@ -185,17 +184,13 @@ def trainBatch(model, criterion, model_optimizer, teach_forcing_prob=1):
     if teach_forcing:
         for di in range(1, target_variable.shape[0]):         
             decoder_output, decoder_hidden = model(decoder_input, decoder_hidden, image)
-            # print(decoder_attention.size())
-            # print("+++++++++++++++shape target_variable[di]: ", target_variable[di].size())
-            # print("+++++++++++++++shape decoder_output: ", decoder_output.size()) 
-            loss += criterion(decoder_output, target_variable[di])  
-                  
+            loss += criterion(decoder_output, target_variable[di]) 
+            print(loss)
             decoder_input = target_variable[di] 
             
     else:
         for di in range(1, target_variable.shape[0]):
             decoder_output, decoder_hidden = model(decoder_input, decoder_hidden, image)
-            
             loss += criterion(decoder_output, target_variable[di])  
             topv, topi = decoder_output.data.topk(1)
             ni = topi.squeeze()
@@ -229,8 +224,8 @@ if __name__ == '__main__':
         # do checkpointing
         if epoch % opt.saveInterval == 0:
             print("For train\n")
-            val(model, criterion, 1, dataset=test_train, teach_forcing=False, num = 20)
+            val(model, criterion, 1, dataset=test_train, teach_forcing=False, num = 1)
             print("For test\n")
-            val(model, criterion, 1, dataset=test_dataset, teach_forcing=False, num = 20)            # batchsize:1
+            val(model, criterion, 1, dataset=test_dataset, teach_forcing=False, num = 1)            # batchsize:1
             torch.save(
                 model.state_dict(), '{0}/encoder_{1}.pth'.format(opt.experiment, epoch))
